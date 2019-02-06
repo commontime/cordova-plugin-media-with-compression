@@ -218,7 +218,28 @@ public class AudioHandler extends CordovaPlugin {
             return true;
         }
 		//---
-		
+        
+        else if (action.equals("setStreamId")) {
+            String id = args.getString(0);
+            String streamId = args.getString(1);
+            setAudioStreamId(id, streamId);
+            callbackContext.success();
+            return true;
+        }
+
+        else if (action.equals("setRingerMode")) {
+            int ringerMode = args.getInt(0);
+            setRingerMode(ringerMode);
+            callbackContext.success();
+            return true;
+        }
+
+        else if (action.equals("getRingerMode")) {            
+            int mode = getRingerMode();
+            callbackContext.sendPluginResult(new PluginResult(status, mode));
+            return true;
+        }
+
         else if (action.equals("create")) {
             String id = args.getString(0);
             String src = FileHelper.stripFileProtocol(args.getString(1));
@@ -605,6 +626,43 @@ public class AudioHandler extends CordovaPlugin {
         pluginResult.setKeepCallback(true);
         if (messageChannel != null) {
             messageChannel.sendPluginResult(pluginResult);
+        }
+    }
+
+    private void setRingerMode(int mode) {
+        AudioManager am = (AudioManager) this.cordova.getActivity().getSystemService(Context.AUDIO_SERVICE);
+        am.setRingerMode(mode);
+    }
+
+    private int getRingerMode() {
+        AudioManager am = (AudioManager) this.cordova.getActivity().getSystemService(Context.AUDIO_SERVICE);
+        return am.getRingerMode();
+    }
+
+    private int getStreamIdForName(String id) {
+        int streamId = AudioManager.STREAM_MUSIC;
+        if(id.equals("music")) {
+            streamId = AudioManager.STREAM_MUSIC;
+        } else if(id.equals("notification")) {
+            streamId = AudioManager.STREAM_NOTIFICATION;
+        } else if(id.equals("ring")) {
+            streamId = AudioManager.STREAM_RING;
+        } else if(id.equals("alarm")) {
+            streamId = AudioManager.STREAM_ALARM;
+        } else if(id.equals("voice")) {
+            streamId = AudioManager.STREAM_VOICE_CALL;
+        } else if(id.equals("system")) {
+            streamId = AudioManager.STREAM_SYSTEM;
+        } else if(id.equals("dtmf")) {
+            streamId = AudioManager.STREAM_DTMF;
+        }
+        return streamId;
+    }
+
+    private void setAudioStreamId(String id, String streamId) {
+        AudioPlayer ret = players.get(id);
+        if(ret != null) {
+            ret.setStreamId(streamId);
         }
     }
 
