@@ -91,6 +91,8 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     private boolean prepareOnly = true;     // playback after file prepare flag
     private int seekOnPrepared = 0;     // seek to this location once media is prepared
 
+    private int streamId = AudioManager.STREAM_MUSIC;
+
     /**
      * Constructor.
      *
@@ -128,6 +130,24 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.stopRecording();
             this.recorder.release();
             this.recorder = null;
+        }
+    }
+
+    public void setStreamId(String id) {
+        if(id.equals("music")) {
+            streamId = AudioManager.STREAM_MUSIC;
+        } else if(id.equals("notification")) {
+            streamId = AudioManager.STREAM_NOTIFICATION;
+        } else if(id.equals("ring")) {
+            streamId = AudioManager.STREAM_RING;
+        } else if(id.equals("alarm")) {
+            streamId = AudioManager.STREAM_ALARM;
+        } else if(id.equals("voice")) {
+            streamId = AudioManager.STREAM_VOICE_CALL;
+        } else if(id.equals("system")) {
+            streamId = AudioManager.STREAM_SYSTEM;
+        } else if(id.equals("dtmf")) {
+            streamId = AudioManager.STREAM_DTMF;
         }
     }
 
@@ -753,10 +773,14 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.player.prepareAsync();
         }
         else {
+            if (file.startsWith("user-assets")) {
+                file = "/android_asset/www/" + file;
+            }
             if (file.startsWith("/android_asset/")) {
                 String f = file.substring(15);
                 android.content.res.AssetFileDescriptor fd = this.handler.cordova.getActivity().getAssets().openFd(f);
                 this.player.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
+                this.player.setAudioStreamType(streamId);
             }
             else {
                 File fp = new File(file);
@@ -771,6 +795,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             }
                 this.setState(STATE.MEDIA_STARTING);
                 this.player.setOnPreparedListener(this);
+                this.player.setAudioStreamType(streamId);
                 this.player.prepare();
 
                 // Get duration

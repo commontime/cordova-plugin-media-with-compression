@@ -64,9 +64,42 @@ Media.MEDIA_PAUSED = 3;
 Media.MEDIA_STOPPED = 4;
 Media.MEDIA_MSG = ["None", "Starting", "Running", "Paused", "Stopped"];
 
+// Stream ids
+Media.STREAM_ALARM = "alarm";
+Media.STREAM_DTMF = "dtmf";
+Media.STREAM_MUSIC = "music";
+Media.STREAM_NOTIFICATION = "notification";
+Media.STREAM_RING = "ring";
+Media.STREAM_SYSTEM = "system";
+Media.STREAM_VOICE_CALL = "voice";
+
 // "static" function to return existing objs.
 Media.get = function(id) {
     return mediaObjects[id];
+};
+
+Media.prototype.setStreamId = function (cb, streamId) {
+    if (cordova.platformId === 'android') {
+        exec(cb, null, "Media", "setStreamId", [this.id, streamId]);
+    } else {
+        cb();
+    }
+};
+
+Media.setRingerMode = function (successCallback, failCallback, mode) {
+    if (cordova.platformId === 'android') {
+        exec(successCallback, failCallback, "Media", "setRingerMode", [mode]);
+    } else {
+        successCallback();
+    }
+};
+
+Media.getRingerMode = function (successCallback, failCallback) {
+    if (cordova.platformId === 'android') {
+        exec(successCallback, failCallback, "Media", "getRingerMode", []);
+    } else {
+        successCallback(0);
+    }
 };
 
 /**
