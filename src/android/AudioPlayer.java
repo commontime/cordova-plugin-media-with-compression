@@ -774,7 +774,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         }
         else {
             if (file.startsWith("user-assets")) {
-                file = "/android_asset/" + file;
+                file = "/android_asset/www/" + file;
             }
             if (file.startsWith("/android_asset/")) {
                 String f = file.substring(15);
