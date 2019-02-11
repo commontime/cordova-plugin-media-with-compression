@@ -30,7 +30,10 @@ import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
 
 import android.net.Uri;
+import android.util.ArrayMap;
+import android.util.Log;
 
+import java.io.File;
 import java.util.ArrayList;
 
 import org.apache.cordova.PluginResult;
@@ -41,19 +44,21 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * This class called by CordovaActivity to play and record audio.
  * The file can be local or over a network using http.
  *
  * Audio formats supported for player(tested):
- * 	.mp3, .wav
- * 
+ *  .mp3, .wav
+ *
  * Audio recording uses MPEG-4 encoding, in a m4a wrapper.
  *
  * Local audio files must reside in one of two places:
- * 		android_asset: 		file name must start with /android_asset/sound.mp3
- * 		sdcard:				file name is just sound.mp3
+ *      android_asset:      file name must start with /android_asset/sound.mp3
+ *      sdcard:             file name is just sound.mp3
  */
 public class AudioHandler extends CordovaPlugin {
 
@@ -67,6 +72,18 @@ public class AudioHandler extends CordovaPlugin {
     private int audioChannels;
     private int audioSampleRate;
     private boolean useCompression;
+
+    private JSONArray savedArgs;
+    private Map<String, CallbackContext> callbackContextList;
+    private boolean wasDecrypted;
+    private static final String DECRYPT_FILE_ERROR_MSG = "Failed to play audio due to file decryption";
+    private static final String DECRYPT_FILE_MSG_ID = "DECRYPT_FILE";
+    private static final String DECRYPT_FILE_CALLBACK_MSG_ID = "DECRYPTION_RESPONSE";
+    private static final String DECRYPT_FILE_URI_KEY = "uri";
+    private static final String DECRYPT_FILE_CALLBACK_KEY = "cb";
+    private static final String DECRYPT_TARGET_KEY = "target";
+    private static final String ENCRYPT_DECRYPT_REQUEST_ID_KEY = "encryptDecryptRequestId";
+    private static final String ENCRYPTED_FILE_EXTENSION = ".encrypted";
 
     public static String [] permissions = { Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE};
     public static int RECORD_AUDIO = 0;
@@ -105,12 +122,15 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Executes the request and returns PluginResult.
-     * @param action 		The action to execute.
-     * @param args 			JSONArry of arguments for the plugin.
-     * @param callbackContext		The callback context used when calling back into JavaScript.
-     * @return 				A PluginResult object with a status and message.
+     * @param action        The action to execute.
+     * @param args          JSONArry of arguments for the plugin.
+     * @param callbackContext       The callback context used when calling back into JavaScript.
+     * @return              A PluginResult object with a status and message.
      */
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
+        if (callbackContextList == null)
+            callbackContextList = new ArrayMap<String, CallbackContext>();
+
         CordovaResourceApi resourceApi = webView.getResourceApi();
         PluginResult.Status status = PluginResult.Status.OK;
         String result = "";
@@ -128,7 +148,7 @@ public class AudioHandler extends CordovaPlugin {
             this.useCompression = false;
             promptForRecord(this.useCompression);
         }
-		
+
         else if (action.equals("startRecordingAudioWithCompression")) {
             recordId = args.getString(0);
             String target = args.getString(1);
@@ -156,7 +176,7 @@ public class AudioHandler extends CordovaPlugin {
         else if (action.equals("pauseRecordingAudio")) {
             this.pauseRecordingAudio(args.getString(0));
         }
-		else  if (action.equals("resumeRecordingAudio")) {
+        else  if (action.equals("resumeRecordingAudio")) {
             String target = args.getString(1);
             String fileUriStr;
             try {
@@ -165,22 +185,52 @@ public class AudioHandler extends CordovaPlugin {
             } catch (IllegalArgumentException e) {
                 fileUriStr = target;
             }
-            
+
             this.resumeRecordingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr), this.audioChannels, this.audioSampleRate);
         }
         else if (action.equals("stopRecordingAudio")) {
             this.stopRecordingAudio(args.getString(0));
         }
         else if (action.equals("startPlayingAudio")) {
-            String target = args.getString(1);
-            String fileUriStr;
-            try {
-                Uri targetUri = resourceApi.remapUri(Uri.parse(target));
-                fileUriStr = targetUri.toString();
-            } catch (IllegalArgumentException e) {
-                fileUriStr = target;
+            // Handle encrypted file here
+            if (args.getString(1).contains(ENCRYPTED_FILE_EXTENSION)) {
+                this.execute("release", args, callbackContext);
+                if (webView.getPluginManager().getPlugin("FileEncryption") == null)
+                {
+                    callbackContext.error("Unable to decrypt audio file at '" + args.getString(1) + "'. File encryption plugin not present.");
+                }
+                String decryptRequestId = UUID.randomUUID().toString();
+                callbackContextList.put(decryptRequestId, callbackContext);
+                savedArgs = args;
+                wasDecrypted = true;
+                JSONObject data = new JSONObject();
+                data.put(ENCRYPT_DECRYPT_REQUEST_ID_KEY, decryptRequestId);
+                data.put(DECRYPT_FILE_URI_KEY, args.getString(1));
+                data.put(DECRYPT_TARGET_KEY, cordova.getActivity().getCacheDir().getAbsolutePath());
+                data.put(DECRYPT_FILE_CALLBACK_KEY, DECRYPT_FILE_CALLBACK_MSG_ID);
+                webView.getPluginManager().postMessage(DECRYPT_FILE_MSG_ID, data);
+            } else {
+                String target = args.getString(1);
+                String fileUriStr;
+                try {
+                    Uri targetUri = webView.getResourceApi().remapUri(Uri.parse(target));
+                    fileUriStr = targetUri.toString();
+                } catch (IllegalArgumentException e) {
+                    fileUriStr = target;
+                }
+                this.startPlayingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr));
+                if (wasDecrypted) {
+                    File fdelete = new File(target);
+                    if (fdelete.exists()) {
+                        if (fdelete.delete()) {
+                            Log.d(TAG, "file Deleted : " + target);
+                        } else {
+                            Log.d(TAG, "file not Deleted : " + target);
+                        }
+                    }
+                    wasDecrypted = false;
+                }
             }
-            this.startPlayingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr));
         }
         else if (action.equals("seekToAudio")) {
            try {
@@ -210,15 +260,15 @@ public class AudioHandler extends CordovaPlugin {
             callbackContext.sendPluginResult(new PluginResult(status, f));
             return true;
         }
-		
-		//REM mods
-		else if (action.equals("getRecordDbLevel")) {
+
+        //REM mods
+        else if (action.equals("getRecordDbLevel")) {
             float f = this.getAudioRecordDbLevel(args.getString(0));
             callbackContext.sendPluginResult(new PluginResult(status, f));
             return true;
         }
-		//---
-        
+        //---
+
         else if (action.equals("setStreamId")) {
             String id = args.getString(0);
             String streamId = args.getString(1);
@@ -234,7 +284,7 @@ public class AudioHandler extends CordovaPlugin {
             return true;
         }
 
-        else if (action.equals("getRingerMode")) {            
+        else if (action.equals("getRingerMode")) {
             int mode = getRingerMode();
             callbackContext.sendPluginResult(new PluginResult(status, mode));
             return true;
@@ -317,6 +367,26 @@ public class AudioHandler extends CordovaPlugin {
                 this.pausedForPhone.clear();
             }
         }
+
+        if (id.equals(DECRYPT_FILE_CALLBACK_MSG_ID)) {
+            if (data != null) {
+                try {
+                    JSONObject jsonData = (JSONObject) data;
+                    String requestId = ((JSONObject) data).getString(ENCRYPT_DECRYPT_REQUEST_ID_KEY);
+                    CallbackContext callbackContext = callbackContextList.get(requestId);
+                    if (callbackContext == null) return super.onMessage(id, data);
+                    callbackContextList.remove(requestId);
+                    savedArgs.put(1, jsonData.getString(DECRYPT_FILE_URI_KEY).replace("file:", ""));
+                    this.execute("startPlayingAudio", savedArgs, callbackContext);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    Log.e(TAG, DECRYPT_FILE_ERROR_MSG);
+                }
+            } else {
+                Log.e(TAG, DECRYPT_FILE_ERROR_MSG);
+            }
+        }
+
         return null;
     }
 
@@ -338,7 +408,7 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Release the audio player instance to save memory.
-     * @param id				The id of the audio player
+     * @param id                The id of the audio player
      */
     private boolean release(String id) {
         AudioPlayer audio = players.remove(id);
@@ -354,8 +424,8 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Start recording and save the specified file.
-     * @param id				The id of the audio player
-     * @param file				The name of the file
+     * @param id                The id of the audio player
+     * @param file              The name of the file
      */
     public void startRecordingAudio(String id, String file) {
         AudioPlayer audio = getOrCreatePlayer(id, file);
@@ -373,10 +443,10 @@ public class AudioHandler extends CordovaPlugin {
         AudioPlayer audio = getOrCreatePlayer(id, file);
         audio.startRecordingWithCompression(file, channels, sampleRate);
     }
-	
-	/**
+
+    /**
      * Pause recording (stop recording) and append to the file specified when recording started.
-     * @param id				The id of the audio player
+     * @param id                The id of the audio player
      */
     public void pauseRecordingAudio(String id) {
         AudioPlayer audio = this.players.get(id);
@@ -385,10 +455,10 @@ public class AudioHandler extends CordovaPlugin {
         }
     }
 
-	/**
+    /**
      * Resume recording and save the specified file.
-     * @param id				The id of the audio player
-     * @param file				The name of the file
+     * @param id                The id of the audio player
+     * @param file              The name of the file
      * @param channels          1 or 2, mono or stereo, default value is 1
      * @param sampleRate        sample rate in hz, 8000 to 48000, optional, default value is 44100
      */
@@ -399,10 +469,10 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Stop recording.
-     * Note: This plugin never calls audio.stopRecording. 
+     * Note: This plugin never calls audio.stopRecording.
      * Instead it calls the pauseRecording method.
      * stopRecording is not required since it does not append.
-     * @param id				The id of the audio player
+     * @param id                The id of the audio player
      */
     public void stopRecordingAudio(String id) {
         AudioPlayer audio = this.players.get(id);
@@ -413,8 +483,8 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Start or resume playing audio file.
-     * @param id				The id of the audio player
-     * @param file				The name of the audio file.
+     * @param id                The id of the audio player
+     * @param file              The path of the audio file.
      */
     public void startPlayingAudio(String id, String file) {
         AudioPlayer audio = getOrCreatePlayer(id, file);
@@ -423,8 +493,8 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Seek to a location.
-     * @param id				The id of the audio player
-     * @param milliseconds		int: number of milliseconds to skip 1000 = 1 second
+     * @param id                The id of the audio player
+     * @param milliseconds      int: number of milliseconds to skip 1000 = 1 second
      */
     public void seekToAudio(String id, int milliseconds) {
         AudioPlayer audio = this.players.get(id);
@@ -435,7 +505,7 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Pause playing.
-     * @param id				The id of the audio player
+     * @param id                The id of the audio player
      */
     public void pausePlayingAudio(String id) {
         AudioPlayer audio = this.players.get(id);
@@ -446,7 +516,7 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Stop playing the audio file.
-     * @param id				The id of the audio player
+     * @param id                The id of the audio player
      */
     public void stopPlayingAudio(String id) {
         AudioPlayer audio = this.players.get(id);
@@ -454,8 +524,8 @@ public class AudioHandler extends CordovaPlugin {
             audio.stopPlaying();
         }
     }
-	
-	 /**
+
+     /**
      * Get dB level of recording microphone power
      * @param id
      * @return dB power level
@@ -472,8 +542,8 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Get current position of playback.
-     * @param id				The id of the audio player
-     * @return 					position in msec
+     * @param id                The id of the audio player
+     * @return                  position in msec
      */
     public float getCurrentPositionAudio(String id) {
         AudioPlayer audio = this.players.get(id);
@@ -485,9 +555,9 @@ public class AudioHandler extends CordovaPlugin {
 
     /**
      * Get the duration of the audio file.
-     * @param id				The id of the audio player
-     * @param file				The name of the audio file.
-     * @return					The duration in msec.
+     * @param id                The id of the audio player
+     * @param file              The name of the audio file.
+     * @return                  The duration in msec.
      */
     public float getDurationAudio(String id, String file) {
         AudioPlayer audio = getOrCreatePlayer(id, file);
@@ -497,7 +567,7 @@ public class AudioHandler extends CordovaPlugin {
     /**
      * Set the audio device to be used for playback.
      *
-     * @param output			1=earpiece, 2=speaker
+     * @param output            1=earpiece, 2=speaker
      */
     @SuppressWarnings("deprecation")
     public void setAudioOutputDevice(int output) {
@@ -517,7 +587,7 @@ public class AudioHandler extends CordovaPlugin {
     /**
      * Get the audio device to be used for playback.
      *
-     * @return					1=earpiece, 2=speaker
+     * @return                  1=earpiece, 2=speaker
      */
     @SuppressWarnings("deprecation")
     public int getAudioOutputDevice() {
@@ -536,7 +606,7 @@ public class AudioHandler extends CordovaPlugin {
     /**
      * Set the volume for an audio device
      *
-     * @param id				The id of the audio player
+     * @param id                The id of the audio player
      * @param volume            Volume to adjust to 0.0f - 1.0f
      */
     public void setVolume(String id, float volume) {

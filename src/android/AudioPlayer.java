@@ -18,10 +18,6 @@
 */
 package org.apache.cordova.media;
 
-
-import android.app.Activity;
-import android.app.Application;
-import android.content.Context;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
