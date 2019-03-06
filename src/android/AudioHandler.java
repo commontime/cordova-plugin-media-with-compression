@@ -194,7 +194,6 @@ public class AudioHandler extends CordovaPlugin {
         else if (action.equals("startPlayingAudio")) {
             // Handle encrypted file here
             if (args.getString(1).contains(ENCRYPTED_FILE_EXTENSION)) {
-                this.execute("release", args, callbackContext);
                 if (webView.getPluginManager().getPlugin("FileEncryption") == null)
                 {
                     callbackContext.error("Unable to decrypt audio file at '" + args.getString(1) + "'. File encryption plugin not present.");
