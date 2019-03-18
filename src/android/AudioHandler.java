@@ -223,7 +223,7 @@ public class AudioHandler extends CordovaPlugin {
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            SystemClock.sleep(250);
+                            SystemClock.sleep(2000);
                             File fdelete = new File(target);
                             if (fdelete.exists()) {
                                 if (fdelete.delete()) {
