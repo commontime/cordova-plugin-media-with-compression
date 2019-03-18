@@ -23,6 +23,13 @@ var argscheck = require('cordova/argscheck'),
     utils = require('cordova/utils'),
     exec = require('cordova/exec');
 
+const oldExec = exec;
+
+exec = function(success, fail, service, action, args) {
+    console.log("cordova.exec: " + service + " " + action + JSON.stringify(args));
+    oldExec(success, fail, service, action, args);
+}
+
 var mediaObjects = {};
 
 /**
@@ -47,6 +54,7 @@ var Media = function(src, successCallback, errorCallback, statusCallback) {
     this.statusCallback = statusCallback;
     this._duration = -1;
     this._position = -1;
+    
     exec(null, this.errorCallback, "Media", "create", [this.id, this.src]);
 };
 
