@@ -28,6 +28,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.AudioManager.OnAudioFocusChangeListener;
+import android.os.SystemClock;
 
 import android.net.Uri;
 import android.util.ArrayMap;
@@ -219,14 +220,20 @@ public class AudioHandler extends CordovaPlugin {
                 }
                 this.startPlayingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr));
                 if (wasDecrypted) {
-                    File fdelete = new File(target);
-                    if (fdelete.exists()) {
-                        if (fdelete.delete()) {
-                            Log.d(TAG, "file Deleted : " + target);
-                        } else {
-                            Log.d(TAG, "file not Deleted : " + target);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            SystemClock.sleep(2000);
+                            File fdelete = new File(target);
+                            if (fdelete.exists()) {
+                                if (fdelete.delete()) {
+                                    Log.d(TAG, "file Deleted : " + target);
+                                } else {
+                                    Log.d(TAG, "file not Deleted : " + target);
+                                }
+                            }
                         }
-                    }
+                    }).start();
                     wasDecrypted = false;
                 }
             }
@@ -486,6 +493,7 @@ public class AudioHandler extends CordovaPlugin {
      * @param file              The path of the audio file.
      */
     public void startPlayingAudio(String id, String file) {
+        System.out.println("GRAHAM: startPlayingAudio " + id + ", " + file);
         AudioPlayer audio = getOrCreatePlayer(id, file);
         audio.startPlaying(file);
     }
