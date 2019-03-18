@@ -219,14 +219,14 @@ public class AudioHandler extends CordovaPlugin {
                 }
                 this.startPlayingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr));
                 if (wasDecrypted) {
-                    File fdelete = new File(target);
-                    if (fdelete.exists()) {
-                        if (fdelete.delete()) {
-                            Log.d(TAG, "file Deleted : " + target);
-                        } else {
-                            Log.d(TAG, "file not Deleted : " + target);
-                        }
-                    }
+//                     File fdelete = new File(target);
+//                     if (fdelete.exists()) {
+//                         if (fdelete.delete()) {
+//                             Log.d(TAG, "file Deleted : " + target);
+//                         } else {
+//                             Log.d(TAG, "file not Deleted : " + target);
+//                         }
+//                     }
                     wasDecrypted = false;
                 }
             }
