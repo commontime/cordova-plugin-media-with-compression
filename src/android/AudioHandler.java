@@ -486,6 +486,7 @@ public class AudioHandler extends CordovaPlugin {
      * @param file              The path of the audio file.
      */
     public void startPlayingAudio(String id, String file) {
+        System.out.println("GRAHAM: startPlayingAudio " + id + ", " + file);
         AudioPlayer audio = getOrCreatePlayer(id, file);
         audio.startPlaying(file);
     }
