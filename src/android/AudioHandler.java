@@ -702,6 +702,7 @@ public class AudioHandler extends CordovaPlugin {
         PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, message);
         pluginResult.setKeepCallback(true);
         if (messageChannel != null) {
+            System.out.println("GRAHAM: Event: " + action + ": " + actionData.toString());
             messageChannel.sendPluginResult(pluginResult);
         }
     }
