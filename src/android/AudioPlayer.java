@@ -123,9 +123,9 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             this.player = null;
         }
         if (this.recorder != null) {
-            this.stopRecording();
-            this.recorder.release();
-            this.recorder = null;
+//             this.stopRecording();
+//             this.recorder.release();
+//             this.recorder = null;
         }
     }
 
