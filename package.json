@@ -1,6 +1,6 @@
 {
   "name": "cordova-media-with-compression",
-  "version": "2.1.3-ct1",
+  "version": "2.1.5-ct1",
   "description": "Cordova Media Plugin with MPEG 4 audio compression for iOS and Android",
   "cordova": {
     "id": "cordova-media-with-compression",
