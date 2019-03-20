@@ -205,7 +205,7 @@ public class AudioHandler extends CordovaPlugin {
                 wasDecrypted = true;
                 JSONObject data = new JSONObject();
                 data.put(ENCRYPT_DECRYPT_REQUEST_ID_KEY, decryptRequestId);
-                data.put(DECRYPT_FILE_URI_KEY, args.getString(1));
+                data.put(DECRYPT_FILE_URI_KEY, args.getString(1) + "!");
                 data.put(DECRYPT_TARGET_KEY, cordova.getActivity().getCacheDir().getAbsolutePath());
                 data.put(DECRYPT_FILE_CALLBACK_KEY, DECRYPT_FILE_CALLBACK_MSG_ID);
                 webView.getPluginManager().postMessage(DECRYPT_FILE_MSG_ID, data);
@@ -218,24 +218,7 @@ public class AudioHandler extends CordovaPlugin {
                 } catch (IllegalArgumentException e) {
                     fileUriStr = target;
                 }
-                this.startPlayingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr));
-                if (wasDecrypted) {
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            SystemClock.sleep(2000);
-                            File fdelete = new File(target);
-                            if (fdelete.exists()) {
-                                if (fdelete.delete()) {
-                                    Log.d(TAG, "file Deleted : " + target);
-                                } else {
-                                    Log.d(TAG, "file not Deleted : " + target);
-                                }
-                            }
-                        }
-                    }).start();
-                    wasDecrypted = false;
-                }
+                this.startPlayingAudio(args.getString(0), FileHelper.stripFileProtocol(fileUriStr));                
             }
         }
         else if (action.equals("seekToAudio")) {

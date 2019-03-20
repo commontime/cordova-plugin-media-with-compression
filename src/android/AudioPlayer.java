@@ -414,11 +414,13 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
      */
     public void startPlaying(String file) {
         if (this.readyPlayer(file) && this.player != null) {
+            this.audioFile = file;
             this.player.start();
             this.setState(STATE.MEDIA_RUNNING);
             this.seekOnPrepared = 0; //insures this is always reset
         } else {
             this.prepareOnly = false;
+            this.audioFile = file;
         }
     }
 
@@ -560,9 +562,9 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
     public float getDuration(String file) {
 
         // Can't get duration of recording
-        if (this.recorder != null) {
-            return (-2); // not allowed
-        }
+       if (this.recorder != null) {
+           return (-2); // not allowed
+       }
 
         // If audio file already loaded and started, then return duration
         if (this.player != null) {
@@ -646,6 +648,17 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
             sendStatusChange(MEDIA_STATE, null, (float)state.ordinal());
         }
         this.state = state;
+
+        if( STATE.MEDIA_STOPPED == this.state ) {
+            File fdelete = new File(this.audioFile);
+            if (fdelete.exists()) {
+                if (fdelete.delete()) {
+                    Log.d(LOG_TAG, "file Deleted : " + this.audioFile);
+                } else {
+                    Log.d(LOG_TAG, "file not Deleted : " + this.audioFile);
+                }
+            }
+        }
     }
 
     /**
