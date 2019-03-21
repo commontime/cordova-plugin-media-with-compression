@@ -649,16 +649,16 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         }
         this.state = state;
 
-        if( STATE.MEDIA_STOPPED == this.state ) {
-            File fdelete = new File(this.audioFile);
-            if (fdelete.exists()) {
-                if (fdelete.delete()) {
-                    Log.d(LOG_TAG, "file Deleted : " + this.audioFile);
-                } else {
-                    Log.d(LOG_TAG, "file not Deleted : " + this.audioFile);
-                }
-            }
-        }
+//         if( STATE.MEDIA_STOPPED == this.state ) {
+//             File fdelete = new File(this.audioFile);
+//             if (fdelete.exists()) {
+//                 if (fdelete.delete()) {
+//                     Log.d(LOG_TAG, "file Deleted : " + this.audioFile);
+//                 } else {
+//                     Log.d(LOG_TAG, "file not Deleted : " + this.audioFile);
+//                 }
+//             }
+//         }
     }
 
     /**
